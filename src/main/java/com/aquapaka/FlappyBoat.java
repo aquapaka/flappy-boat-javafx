@@ -4,7 +4,11 @@ import com.aquapaka.scene.GameScene;
 import com.aquapaka.scene.MenuScene;
 import com.aquapaka.state.GameState;
 import javafx.application.Application;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.io.FileInputStream;
 
 /**
  * Hello world!
