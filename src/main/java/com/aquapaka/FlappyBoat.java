@@ -1,9 +1,11 @@
 package com.aquapaka;
 
+import com.aquapaka.model.Boat;
 import com.aquapaka.scene.GameScene;
 import com.aquapaka.scene.MenuScene;
 import com.aquapaka.state.GameState;
 import javafx.application.Application;
+import javafx.scene.image.Image;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
@@ -15,13 +17,13 @@ import java.io.FileInputStream;
  *
  */
 public class FlappyBoat extends Application {
+    private static final String iconUrl = "/image/Player_Boat.png";
     public static final int WINDOW_WIDTH = 1280;
     public static final int WINDOW_HEIGHT = 720;
     public static GameState gameState;
 
     public static void main(String[] args)
     {
-        System.out.println( "Starting application..." );
         launch(args);
     }
 
@@ -34,6 +36,8 @@ public class FlappyBoat extends Application {
         gameState = GameState.IN_MENU;
 
         stage.setResizable(false);
+        stage.setTitle("Flappy Boat");
+        stage.getIcons().add(new Image(iconUrl));
         stage.show();
     }
 }
