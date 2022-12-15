@@ -13,7 +13,6 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 
@@ -21,34 +20,40 @@ import java.util.List;
 import java.util.Random;
 
 public class GameScene extends Scene {
-    private static final double START_SPEED = 1;
+    private static final long CLEAN_ENTITY_TIME_INTERVAL = 5000;
+    private static final long SPAWN_ENEMY_TIME_INTERVAL = 3000;
+    private static final double BOAT_START_SPEED = 2;
     private static final double GRAVITY = 0.05;
+    private static final int BOAT_SPAWN_POS_X = 120;
+    private static final int BOAT_SPAWN_POS_Y = 300;
+    private final Random random = new Random(System.currentTimeMillis());
     private Boat boat;
+    private double currentBoatFlySpeed;
+    private Background background1;
+    private Background background2;
+    private StackPane playingUiPane;
+    private StackPane gameOverUiPane;
+    private Text instructionText;
+    private Text playingScoreText;
+    private Text gameOverScoreText;
+    private int score;
 
     public GameScene(double v, double v1) {
         super(new Pane(), v, v1);
         initGameScene();
     }
 
-    private void initGameScene() {
+    private void initPlayingUiPane() {
         Pane gamePane = (Pane) getRoot();
-        double boatSpeed = START_SPEED;
 
-        // Create 2 background next to each other
-        Background background1 = new Background();
-        Background background2 = new Background();
-        double backgroundWidth = background1.getImage().getWidth();
-        background1.setVelocityX(-boatSpeed);
-        background2.setVelocityX(-boatSpeed);
-        background2.setX(background1.getX() + backgroundWidth);
-
-        // create playing ui pane
-        StackPane playingUiPane = new StackPane();
+        playingUiPane = new StackPane();
         playingUiPane.setMinWidth(gamePane.getWidth());
         playingUiPane.setMinHeight(gamePane.getHeight());
-        Text instructionText = TextFactory.getText("INSTRUCTION: Press SPACE to Jump, try to dodge bullets and enemies", 32);
+        instructionText = TextFactory.getText("INSTRUCTION: Press SPACE to Jump, try to dodge bullets and enemies", 32);
         instructionText.setTranslateY(-200);
-        playingUiPane.getChildren().addAll(instructionText);
+        playingScoreText = TextFactory.getText("", 48);
+        playingScoreText.setTranslateY(-340);
+        playingUiPane.getChildren().addAll(instructionText, playingScoreText);
 
         for (Node node : playingUiPane.getChildren()) {
             if(node instanceof Text) {
@@ -56,16 +61,22 @@ public class GameScene extends Scene {
                 playingUiPane.setAlignment(Pos.CENTER);
             }
         }
+    }
 
-        // Create ui pane
-        StackPane gameOverUiPane = new StackPane();
+    private void initGameOverUiPane() {
+        Pane gamePane = (Pane) getRoot();
+
+        // Create game over ui pane
+        gameOverUiPane = new StackPane();
         gameOverUiPane.setMinWidth(gamePane.getWidth());
         gameOverUiPane.setMinHeight(gamePane.getHeight());
         Text gameOverText = TextFactory.getText("Game Over", 94);
-        gameOverText.setTranslateY(-40);
-        Text scoreText = TextFactory.getText("Score: 0", 48);
-        scoreText.setTranslateY(40);
-        gameOverUiPane.getChildren().addAll(gameOverText, scoreText);
+        gameOverText.setTranslateY(-100);
+        gameOverScoreText = TextFactory.getText("Score: 0", 48);
+        gameOverScoreText.setTranslateY(0);
+        Text tryAgainText = TextFactory.getText("Press ENTER to try again", 48);
+        tryAgainText.setTranslateY(100);
+        gameOverUiPane.getChildren().addAll(gameOverText, gameOverScoreText, tryAgainText);
 
         for (Node node : gameOverUiPane.getChildren()) {
             if(node instanceof Text) {
@@ -74,16 +85,42 @@ public class GameScene extends Scene {
             }
         }
         gameOverUiPane.setVisible(false);
+    }
 
-        boat = new Boat(120, 300,   0, 0, 0, GRAVITY);
+    private void initBackground() {
+        // Create 2 background next to each other
+        background1 = new Background();
+        background2 = new Background();
+        double backgroundWidth = background1.getImage().getWidth();
+        background1.setVelocityX(-BOAT_START_SPEED);
+        background2.setVelocityX(-BOAT_START_SPEED);
+        background2.setX(background1.getX() + backgroundWidth);
+    }
+
+    private void initGameScene() {
+        initPlayingUiPane();
+        initGameOverUiPane();
+        initBackground();
+
+        boat = new Boat(BOAT_SPAWN_POS_X, BOAT_SPAWN_POS_Y,   0, 0, 0, GRAVITY);
+        currentBoatFlySpeed = BOAT_START_SPEED;
+
+        Pane gamePane = (Pane) getRoot();
+        gamePane.getChildren().addAll(background1, background2, boat, playingUiPane, gameOverUiPane);
 
         AnimationTimer timer = new AnimationTimer() {
+            private long startTime = System.currentTimeMillis();
+            private long prevSpawnTime;
+            private long spawnTimeInteral = SPAWN_ENEMY_TIME_INTERVAL;
+            private long prevCleanTime;
+
             @Override
             public void handle(long now) {
                 if(FlappyBoat.gameState == GameState.PLAYING || FlappyBoat.gameState == GameState.GAME_OVER) {
                     update();
 
                     // Loop position of the background that leaved the screen
+                    double backgroundWidth = background1.getImage().getWidth();
                     if(background1.getX() + backgroundWidth < 0) {
                         background1.setX(background2.getX() + backgroundWidth);
                     }
@@ -91,19 +128,43 @@ public class GameScene extends Scene {
                         background2.setX(background1.getX() + backgroundWidth);
                     }
 
-                    // Game over if player fall below screen
-                    if(boat.getY() > FlappyBoat.WINDOW_HEIGHT) {
-                        FlappyBoat.gameState = GameState.GAME_OVER;
-                        gameOverUiPane.setVisible(true);
+                    long nowTime = System.currentTimeMillis();
+                    // Generate enemy after certain time
+                    if(nowTime - prevSpawnTime > spawnTimeInteral) {
+                        spawnEnemy();
+                        spawnTimeInteral = random.nextLong(SPAWN_ENEMY_TIME_INTERVAL);
+                        prevSpawnTime = nowTime;
+
+                        addScore(15);
                     }
 
-                    // Generate enemies
-                    Random randomPosY = new Random(System.currentTimeMillis());
-                    gamePane.getChildren().add(new Enemy(FlappyBoat.WINDOW_WIDTH, randomPosY.nextInt(FlappyBoat.WINDOW_HEIGHT), 0, 0, -0.05, 0));
+                    // Remove out of screen entities after certain time
+                    if(nowTime - prevCleanTime > CLEAN_ENTITY_TIME_INTERVAL) {
+                        cleanEntities();
+                        prevCleanTime = nowTime;
+                    }
 
-                    // Move ui to front so enemy will not overlap ui
-                    playingUiPane.toFront();
-                    gameOverUiPane.toFront();
+                    // Increase boat fly speed over time
+                    currentBoatFlySpeed += 0.0001;
+                    // Update background speed to match boat fly speed
+                    background1.setVelocityX(-currentBoatFlySpeed);
+                    background2.setVelocityX(-currentBoatFlySpeed);
+
+                    // Check game over conditions
+                    if(!boat.isDead()) {
+                        // Game over if player touch enemy
+                        for(Node node : gamePane.getChildren()) {
+                            if(!(node instanceof Enemy enemy)) continue;
+                            if(enemy.getBoundsInParent().intersects(boat.getBoundsInParent())) {
+                                gameOver();
+                            }
+                        }
+
+                        // Game over if player fall below screen
+                        if(boat.getY() > FlappyBoat.WINDOW_HEIGHT) {
+                            gameOver();
+                        }
+                    }
                 }
             }
         };
@@ -118,18 +179,15 @@ public class GameScene extends Scene {
                         instructionText.setVisible(false);
                         boat.jump();
                     }
-                    break;
                 }
 
                 case ENTER -> {
                     if(FlappyBoat.gameState == GameState.GAME_OVER) {
-                        FlappyBoat.gameState = GameState.WAITING_FOR_START;
+                        resetGameScene();
                     }
                 }
             }
         });
-
-        gamePane.getChildren().addAll(background1, background2, boat, playingUiPane, gameOverUiPane);
     }
 
     private void update() {
@@ -137,9 +195,56 @@ public class GameScene extends Scene {
         List<Node> nodes = gamePane.getChildren();
 
         for(Node node : nodes) {
-            if(node instanceof Entity) {
-                ((Entity) node).update();
+            if(node instanceof Entity entity) {
+                entity.update();
             }
         }
+    }
+
+    private void addScore(int addScore) {
+        score += addScore;
+        playingScoreText.textProperty().set(String.format("%09d", score));
+    }
+
+    private void spawnEnemy() {
+        int spawnLocationX = FlappyBoat.WINDOW_WIDTH;
+        int spawnLocationY = random.nextInt(FlappyBoat.WINDOW_HEIGHT);
+        double enemyVelocityX = 0 + random.nextDouble(5);
+
+        ((Pane)getRoot()).getChildren().add(new Enemy(spawnLocationX, spawnLocationY, - enemyVelocityX - currentBoatFlySpeed, 0, -0.01, 0));
+
+        // Move ui to front so enemy will not overlap ui
+        playingUiPane.toFront();
+        gameOverUiPane.toFront();
+    }
+
+    private void cleanEntities() {
+        ((Pane)getRoot()).getChildren().removeIf(node -> {
+            if (!(node instanceof Entity entity)) return false;
+            if (node instanceof Background || node instanceof Boat) return false;
+            return entity.getX() < -200 || entity.getX() > FlappyBoat.WINDOW_WIDTH + 200 || entity.getY() < -200 || entity.getY() > FlappyBoat.WINDOW_HEIGHT + 200;
+        });
+    }
+
+    private void gameOver() {
+        FlappyBoat.gameState = GameState.GAME_OVER;
+        boat.setDead(true);
+        boat.setVelocityX(-1);
+        boat.setVelocityY(-2);
+        gameOverScoreText.textProperty().set(String.format("Score: %d", score));
+        gameOverUiPane.setVisible(true);
+    }
+
+    private void resetGameScene() {
+        FlappyBoat.gameState = GameState.WAITING_FOR_START;
+        instructionText.setVisible(true);
+        gameOverUiPane.setVisible(false);
+        boat.setX(BOAT_SPAWN_POS_X);
+        boat.setY(BOAT_SPAWN_POS_Y);
+        boat.setDead(false);
+        boat.setVelocityX(0);
+        boat.setVelocityY(0);
+        boat.setRotate(0);
+        ((Pane)getRoot()).getChildren().removeIf(node -> node instanceof Enemy);
     }
 }
