@@ -36,6 +36,7 @@ public class GameScene extends Scene {
     private Text instructionText;
     private Text playingScoreText;
     private Text gameOverScoreText;
+    private long startTime;
     private int score;
 
     public GameScene(double v, double v1) {
@@ -102,14 +103,13 @@ public class GameScene extends Scene {
         initGameOverUiPane();
         initBackground();
 
-        boat = new Boat(BOAT_SPAWN_POS_X, BOAT_SPAWN_POS_Y,   0, 0, 0, GRAVITY);
+        boat = new Boat(BOAT_SPAWN_POS_X, BOAT_SPAWN_POS_Y,   0, 10, 0, GRAVITY);
         currentBoatFlySpeed = BOAT_START_SPEED;
 
         Pane gamePane = (Pane) getRoot();
         gamePane.getChildren().addAll(background1, background2, boat, playingUiPane, gameOverUiPane);
 
         AnimationTimer timer = new AnimationTimer() {
-            private long startTime = System.currentTimeMillis();
             private long prevSpawnTime;
             private long spawnTimeInteral = SPAWN_ENEMY_TIME_INTERVAL;
             private long prevCleanTime;
@@ -118,6 +118,7 @@ public class GameScene extends Scene {
             public void handle(long now) {
                 if(FlappyBoat.gameState == GameState.PLAYING || FlappyBoat.gameState == GameState.GAME_OVER) {
                     update();
+                    addScore(0);
 
                     // Loop position of the background that leaved the screen
                     double backgroundWidth = background1.getImage().getWidth();
@@ -129,13 +130,14 @@ public class GameScene extends Scene {
                     }
 
                     long nowTime = System.currentTimeMillis();
+                    // Update game time
+                    long gameTime = (nowTime - startTime) / 1000;
+
                     // Generate enemy after certain time
                     if(nowTime - prevSpawnTime > spawnTimeInteral) {
                         spawnEnemy();
-                        spawnTimeInteral = random.nextLong(SPAWN_ENEMY_TIME_INTERVAL);
+                        spawnTimeInteral = random.nextLong(Math.max(SPAWN_ENEMY_TIME_INTERVAL - gameTime * 50, 500));
                         prevSpawnTime = nowTime;
-
-                        addScore(15);
                     }
 
                     // Remove out of screen entities after certain time
@@ -174,9 +176,15 @@ public class GameScene extends Scene {
         setOnKeyPressed(e -> {
             switch (e.getCode()) {
                 case SPACE -> {
-                    if(FlappyBoat.gameState == GameState.WAITING_FOR_START || FlappyBoat.gameState == GameState.PLAYING) {
+                    if(FlappyBoat.gameState == GameState.WAITING_FOR_START) {
                         FlappyBoat.gameState = GameState.PLAYING;
                         instructionText.setVisible(false);
+                        playingScoreText.setVisible(true);
+                        startTime = System.currentTimeMillis();
+                        boat.jump();
+                    }
+
+                    if(FlappyBoat.gameState == GameState.PLAYING) {
                         boat.jump();
                     }
                 }
@@ -237,13 +245,16 @@ public class GameScene extends Scene {
 
     private void resetGameScene() {
         FlappyBoat.gameState = GameState.WAITING_FOR_START;
+        score = 0;
+        currentBoatFlySpeed = BOAT_START_SPEED;
+        playingScoreText.setVisible(false);
         instructionText.setVisible(true);
         gameOverUiPane.setVisible(false);
         boat.setX(BOAT_SPAWN_POS_X);
         boat.setY(BOAT_SPAWN_POS_Y);
         boat.setDead(false);
         boat.setVelocityX(0);
-        boat.setVelocityY(0);
+        boat.setVelocityY(10);
         boat.setRotate(0);
         ((Pane)getRoot()).getChildren().removeIf(node -> node instanceof Enemy);
     }
