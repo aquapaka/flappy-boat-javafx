@@ -1,0 +1,6 @@
+# flappy-boat-javafx
+Java game using JavaFX library
+
+![image](https://user-images.githubusercontent.com/84399613/207903552-784e1436-97a5-4962-94d1-2314d740f110.png)
+![image](https://user-images.githubusercontent.com/84399613/207904128-d8887f70-2ee7-465f-bcf2-052af6858583.png)
+
