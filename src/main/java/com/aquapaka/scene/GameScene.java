@@ -1,10 +1,7 @@
 package com.aquapaka.scene;
 
 import com.aquapaka.FlappyBoat;
-import com.aquapaka.model.Background;
-import com.aquapaka.model.Boat;
-import com.aquapaka.model.Enemy;
-import com.aquapaka.model.Entity;
+import com.aquapaka.model.*;
 import com.aquapaka.state.GameState;
 import com.aquapaka.ui.TextFactory;
 import javafx.animation.AnimationTimer;
@@ -153,20 +150,46 @@ public class GameScene extends Scene {
                     background2.setVelocityX(-currentBoatFlySpeed);
 
                     // Check game over conditions
-                    if(!boat.isDead()) {
-                        // Game over if player touch enemy
-                        for(Node node : gamePane.getChildren()) {
+                    for(Node node : gamePane.getChildren()) {
+                        if(!boat.isDead()) {
+                            // Game over if player touch enemy
                             if(!(node instanceof Enemy enemy)) continue;
                             if(enemy.getBoundsInParent().intersects(boat.getBoundsInParent())) {
                                 gameOver();
                             }
+
+                            // Game over if player jump too high
+                            if(boat.getY() < -100) {
+                                gameOver();
+                            }
+
+                            // Game over if player fall below screen
+                            if(boat.getY() > FlappyBoat.WINDOW_HEIGHT) {
+                                gameOver();
+                            }
                         }
 
-                        // Game over if player fall below screen
-                        if(boat.getY() > FlappyBoat.WINDOW_HEIGHT) {
-                            gameOver();
+                        // Mark enemy is dead if it touches player bullet
+                        for(Node node2 : gamePane.getChildren()) {
+                            if(!(node instanceof Enemy enemy)) continue;
+                            if(!(node2 instanceof Bullet bullet)) continue;
+                            if(!(bullet.getOwner() instanceof Boat)) continue;
+
+                            if(enemy.getBoundsInParent().intersects(bullet.getBoundsInParent())) {
+                                enemy.setDead(true);
+                                bullet.setDead(true);
+                                addScore(50);
+                            }
                         }
                     }
+
+                    // Remove all dead bullet and enemy
+                    gamePane.getChildren().removeIf(node -> {
+                        if(node instanceof Enemy || node instanceof Bullet) {
+                            if(((Entity) node).isDead()) return true;
+                        }
+                        return false;
+                    });
                 }
             }
         };
@@ -182,10 +205,12 @@ public class GameScene extends Scene {
                         playingScoreText.setVisible(true);
                         startTime = System.currentTimeMillis();
                         boat.jump();
+                        boat.shoot((Pane) getRoot());
                     }
 
                     if(FlappyBoat.gameState == GameState.PLAYING) {
                         boat.jump();
+                        boat.shoot((Pane) getRoot());
                     }
                 }
 
@@ -239,6 +264,7 @@ public class GameScene extends Scene {
         boat.setDead(true);
         boat.setVelocityX(-1);
         boat.setVelocityY(-2);
+        playingScoreText.setVisible(false);
         gameOverScoreText.textProperty().set(String.format("Score: %d", score));
         gameOverUiPane.setVisible(true);
     }

@@ -8,6 +8,7 @@ public abstract class Entity extends ImageView {
     private double velocityY;
     private double accelerationX;
     private double accelerationY;
+    private boolean isDead;
 
     public Entity(String imageUrl, int imageScale) {
         Image image = new Image(imageUrl);
@@ -63,5 +64,13 @@ public abstract class Entity extends ImageView {
 
     public void setAccelerationY(double accelerationY) {
         this.accelerationY = accelerationY;
+    }
+
+    public boolean isDead() {
+        return isDead;
+    }
+
+    public void setDead(boolean dead) {
+        isDead = dead;
     }
 }
