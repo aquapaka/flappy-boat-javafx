@@ -10,8 +10,9 @@ public class TextFactory {
 
     public static Text getText(String textValue, int fontSize) {
         Text text = new Text(textValue);
-        text.setFill(Color.color(1, 0.8, 0.6));
+        text.setFill(Color.color(1, 1, 1));
         text.setFont(Font.loadFont(FONT_PATH, fontSize));
+        text.setStroke(Color.color(0, 0, 0, 0.2));
 
         return text;
     }
